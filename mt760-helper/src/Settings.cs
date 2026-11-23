@@ -22,6 +22,8 @@ namespace MT760Helper
         public bool KeepOpenWhileMoving = true;
         public bool ShowCountdown = true;
         public bool RapooOnly = true;
+        // "auto", "ru" or "en"; see Lang.Apply.
+        public string Language = "auto";
 
         public static string Folder
         {
@@ -52,6 +54,8 @@ namespace MT760Helper
                 s.LeftClickAction = (ClickAction)Int(values, "LeftClickAction", (int)s.LeftClickAction, 0, 2);
                 s.RightClickAction = (ClickAction)Int(values, "RightClickAction", (int)s.RightClickAction, 0, 2);
                 s.MiddleClickAction = (ClickAction)Int(values, "MiddleClickAction", (int)s.MiddleClickAction, 0, 2);
+                string language;
+                if (values.TryGetValue("Language", out language) && (language == "ru" || language == "en")) s.Language = language;
             }
             catch (Exception ex) { Program.LogError(ex, "load settings"); }
             return s;
@@ -74,6 +78,7 @@ namespace MT760Helper
                     "LeftClickAction=" + (int)LeftClickAction,
                     "RightClickAction=" + (int)RightClickAction,
                     "MiddleClickAction=" + (int)MiddleClickAction,
+                    "Language=" + Language,
                 }, Encoding.UTF8);
             }
             catch (Exception ex) { Program.LogError(ex, "save settings"); }

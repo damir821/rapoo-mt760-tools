@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Text;
+using System.Globalization;
 using System.Windows.Forms;
 
 namespace MT760Helper
@@ -35,17 +36,17 @@ namespace MT760Helper
         // "колесо — выбор · ЛКМ — открыть · ПКМ — отмена", following the current button settings.
         public static string HintFor(Settings settings)
         {
-            string text = "колесо — выбор";
-            text += Part("ЛКМ", settings.LeftClickAction);
-            text += Part("ПКМ", settings.RightClickAction);
-            text += Part("нажатие колеса", settings.MiddleClickAction);
+            string text = Lang.T("колесо — выбор", "wheel — select");
+            text += Part(Lang.T("ЛКМ", "left click"), settings.LeftClickAction);
+            text += Part(Lang.T("ПКМ", "right click"), settings.RightClickAction);
+            text += Part(Lang.T("нажатие колеса", "wheel click"), settings.MiddleClickAction);
             return text;
         }
 
         static string Part(string button, ClickAction action)
         {
-            if (action == ClickAction.Open) return " · " + button + " — открыть";
-            if (action == ClickAction.Cancel) return " · " + button + " — отмена";
+            if (action == ClickAction.Open) return " · " + button + Lang.T(" — открыть", " — open");
+            if (action == ClickAction.Cancel) return " · " + button + Lang.T(" — отмена", " — cancel");
             return "";
         }
 
@@ -107,7 +108,8 @@ namespace MT760Helper
         {
             Graphics g = e.Graphics;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            string title = "Переход через " + (remaining / 1000.0).ToString("0.0") + " с";
+            string seconds = (remaining / 1000.0).ToString("0.0", Lang.English ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo("ru-RU"));
+            string title = Lang.T("Переход через " + seconds + " с", "Switching in " + seconds + " s");
             TextRenderer.DrawText(g, title, titleFont, new Point(S(16), S(10)), Color.White, TextFormatFlags.NoPadding);
             TextRenderer.DrawText(g, hint, hintFont, new Point(S(16), S(34)), Muted, TextFormatFlags.NoPadding);
 

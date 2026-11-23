@@ -20,11 +20,11 @@ The A HUB app can only bind the side wheel to a firmware macro (Alt down → Tab
 - While the list is open: left click = open the selection, right click = cancel, wheel click = open, Enter / Esc. Each mouse button is configurable (open / cancel / do nothing). Clicks never leak into other apps (taskbar, second monitor).
 - **Shift + side wheel** keeps normal horizontal scrolling (timelines, wide tables).
 - Reacts **only to the Rapoo mouse** (raw-input device check), so laptop touchpads and other mice scroll as usual.
-- Tray icon, settings window in Russian, optional autostart. No network, no admin rights.
+- Tray icon, settings window in English or Russian (follows the Windows language, switchable), optional autostart. No network, no admin rights.
 
 **Setup**
 1. In A HUB, set the side wheel back to its default action (Roller left / Roller right) so the mouse sends ordinary horizontal scroll instead of a macro.
-2. Download `MT760Helper.exe` from [Releases](../../releases) (or build it, see below) and run it. Tick "Запускать вместе с Windows" for autostart.
+2. Download `MT760Helper.exe` from [Releases](../../releases) (or build it, see below) and run it. Tick "Start with Windows" for autostart. Full instructions: `mt760-helper/README-en.txt`.
 
 The settings window has a live "wheel check" that shows what the side wheel sends and warns if A HUB's Alt+Tab macro is still assigned.
 
@@ -46,6 +46,7 @@ Layout:
 - `mt760-helper/src` — C# 5 (built with the Windows-bundled `csc.exe` 4.x, so no `$""`, `?.`, etc.).
   - `Engine.cs` — low-level mouse hook + raw input, holds Alt, sends Tab/Shift+Tab, handles clicks/keys while switching.
   - `Thumbnails.cs` — UI Automation hit test for switcher thumbnails (best effort).
+  - `Lang.cs` — interface language; texts are written in place as `Lang.T("русский", "English")`.
   - `Settings.cs` (`%APPDATA%\MT760Helper\settings.ini`, HKCU Run autostart), `SettingsForm.cs`, `Overlay.cs` (countdown), `TrayApp.cs`, `Program.cs` (single instance, error log, optional trace when `%APPDATA%\MT760Helper\trace.on` exists).
 - `mt760-helper/tests/ClickTest.cs` — end-to-end test with synthetic input (`RapooOnly=0` so injected wheel events count).
 - `ahub-russian/tools/QmTool.cs` — reads/writes Qt `.qm` (`dump`, `build`, `check`); messages with an empty context are written without a context tag so they match any context.

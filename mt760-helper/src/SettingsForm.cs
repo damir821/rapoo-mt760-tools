@@ -10,23 +10,24 @@ namespace MT760Helper
     sealed class SettingsForm : Form
     {
         static readonly Color Muted = Color.FromArgb(96, 100, 110);
-        // Index = (int)ClickAction.
-        static readonly string[] ActionNames = { "Открыть выбранное окно", "Отменить переключение", "Ничего не делать" };
+        // Index = position in the language list.
+        static readonly string[] LanguageCodes = { "auto", "ru", "en" };
 
         readonly Settings settings;
         readonly Engine engine;
-        readonly Action changed;
+        readonly Action changed, languageChanged;
         readonly CheckBox enabled, invert, keepOpen, countdown, rapooOnly, autostart;
         readonly NumericUpDown delay, notches;
-        readonly ComboBox leftAction, rightAction, middleAction;
+        readonly ComboBox language, leftAction, rightAction, middleAction;
         readonly Label diagnostics, macroWarning;
         bool loading;
 
-        public SettingsForm(Settings settings, Engine engine, Icon icon, Action changed)
+        public SettingsForm(Settings settings, Engine engine, Icon icon, Action changed, Action languageChanged)
         {
             this.settings = settings;
             this.engine = engine;
             this.changed = changed;
+            this.languageChanged = languageChanged;
 
             SuspendLayout();
             AutoScaleDimensions = new SizeF(96F, 96F);
@@ -37,50 +38,67 @@ namespace MT760Helper
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(500, 746);
+            ClientSize = new Size(500, 766);
 
             const int x = 20, width = 460;
-            AddLabel("Переключение окон боковым колесом", x, 16, width, new Font("Segoe UI", 12F, FontStyle.Bold), SystemColors.ControlText);
-            AddLabel("Колесо открывает список окон (Alt+Tab) и держит его, пока вы выбираете. " +
-                     "Окно откроется, когда вы перестанете крутить колесо.", x, 46, width, null, Muted);
+            AddLabel(Lang.T("Переключение окон боковым колесом", "Switch windows with the side wheel"),
+                     x, 16, width, new Font("Segoe UI", 12F, FontStyle.Bold), SystemColors.ControlText);
+            AddLabel(Lang.T("Колесо открывает список окон (Alt+Tab) и держит его, пока вы выбираете. " +
+                            "Окно откроется, когда вы перестанете крутить колесо.",
+                            "The wheel opens the window list (Alt+Tab) and keeps it open while you choose. " +
+                            "The window opens when you stop rolling the wheel."), x, 46, width, null, Muted);
 
-            enabled = AddCheck("Включено", x, 92);
+            enabled = AddCheck(Lang.T("Включено", "Enabled"), x, 92);
             enabled.Font = new Font(Font, FontStyle.Bold);
 
-            AddLabel("Держать список окон", x, 129, 0, null, null);
-            delay = AddNumber(220, 126, 0.5m, 15m, 0.5m, 1);
-            AddLabel("с после последнего действия", 290, 129, 0, null, null);
+            AddLabel("Язык / Language", 250, 93, 0, null, null);
+            language = new ComboBox { Location = new Point(360, 89), Width = 120, DropDownStyle = ComboBoxStyle.DropDownList };
+            language.Items.AddRange(new object[] { Lang.T("Как в Windows", "Windows language"), "Русский", "English" });
+            Controls.Add(language);
 
-            AddLabel("Щелчков колеса на одно окно", x, 163, 0, null, null);
+            AddLabel(Lang.T("Держать список окон", "Keep the window list open"), x, 129, 0, null, null);
+            delay = AddNumber(220, 126, 0.5m, 15m, 0.5m, 1);
+            AddLabel(Lang.T("с после последнего действия", "s after the last action"), 290, 129, 0, null, null);
+
+            AddLabel(Lang.T("Щелчков колеса на одно окно", "Wheel notches per window"), x, 163, 0, null, null);
             notches = AddNumber(220, 160, 1, 5, 1, 0);
 
-            invert = AddCheck("Обратное направление бокового колеса", x, 198);
-            keepOpen = AddCheck("Не закрывать список, пока я двигаю мышью", x, 224);
-            countdown = AddCheck("Показывать обратный отсчёт внизу экрана", x, 250);
-            rapooOnly = AddCheck("Только мышь Rapoo (тачпад и другие мыши прокручивают как обычно)", x, 276);
-            autostart = AddCheck("Запускать вместе с Windows", x, 302);
+            invert = AddCheck(Lang.T("Обратное направление бокового колеса", "Reverse side wheel direction"), x, 198);
+            keepOpen = AddCheck(Lang.T("Не закрывать список, пока я двигаю мышью", "Keep the list open while I move the mouse"), x, 224);
+            countdown = AddCheck(Lang.T("Показывать обратный отсчёт внизу экрана", "Show a countdown at the bottom of the screen"), x, 250);
+            rapooOnly = AddCheck(Lang.T("Только мышь Rapoo (тачпад и другие мыши прокручивают как обычно)",
+                                        "Rapoo mouse only (touchpad and other mice scroll as usual)"), x, 276);
+            autostart = AddCheck(Lang.T("Запускать вместе с Windows", "Start with Windows"), x, 302);
 
-            var buttons = new GroupBox { Text = "Кнопки мыши, пока открыт список окон", Location = new Point(x, 340), Size = new Size(width, 140) };
-            leftAction = AddAction(buttons, "Левая кнопка (мимо окон)", 26);
-            rightAction = AddAction(buttons, "Правая кнопка", 56);
-            middleAction = AddAction(buttons, "Нажатие на колесо", 86);
+            var buttons = new GroupBox
+            {
+                Text = Lang.T("Кнопки мыши, пока открыт список окон", "Mouse buttons while the window list is open"),
+                Location = new Point(x, 340), Size = new Size(width, 160),
+            };
+            leftAction = AddAction(buttons, Lang.T("Левая кнопка (мимо окон)", "Left button (outside windows)"), 26);
+            rightAction = AddAction(buttons, Lang.T("Правая кнопка", "Right button"), 56);
+            middleAction = AddAction(buttons, Lang.T("Нажатие на колесо", "Wheel click"), 86);
             buttons.Controls.Add(new Label
             {
-                Text = "Щелчок левой кнопкой прямо по окну в списке всегда открывает это окно.",
+                Text = Lang.T("Щелчок прямо по окну в списке открывает это окно, если Windows сообщает, где окна.",
+                              "Clicking a window in the list opens that window when Windows reports where the windows are."),
                 Location = new Point(12, 116), AutoSize = true, MaximumSize = new Size(width - 24, 0), ForeColor = Muted,
             });
             Controls.Add(buttons);
 
-            var check = new GroupBox { Text = "Проверка колеса", Location = new Point(x, 494), Size = new Size(width, 112) };
+            var check = new GroupBox { Text = Lang.T("Проверка колеса", "Wheel check"), Location = new Point(x, 514), Size = new Size(width, 112) };
             diagnostics = new Label
             {
-                Text = "Покрутите боковое колесо мыши — здесь будет видно, что оно отправляет.",
+                Text = Lang.T("Покрутите боковое колесо мыши — здесь будет видно, что оно отправляет.",
+                              "Roll the side wheel — this shows what it sends."),
                 Location = new Point(12, 24), AutoSize = true, MaximumSize = new Size(width - 24, 0),
             };
             macroWarning = new Label
             {
-                Text = "Мышь сама отправляет Alt+Tab — это макрос из A HUB, из-за него окна мелькают. " +
-                       "В A HUB верните боковому колесу стандартное действие (колесо влево / вправо).",
+                Text = Lang.T("Мышь сама отправляет Alt+Tab — это макрос из A HUB, из-за него окна мелькают. " +
+                              "В A HUB верните боковому колесу стандартное действие (колесо влево / вправо).",
+                              "The mouse itself sends Alt+Tab — an A HUB macro, which makes windows flash past. " +
+                              "In A HUB, set the side wheel back to its default action (roller left / right)."),
                 Location = new Point(12, 60), AutoSize = true, MaximumSize = new Size(width - 24, 0),
                 ForeColor = Color.FromArgb(180, 30, 30), Visible = false,
             };
@@ -88,15 +106,17 @@ namespace MT760Helper
             check.Controls.Add(macroWarning);
             Controls.Add(check);
 
-            AddLabel("Пока список открыт: колесо — выбрать окно, Enter — открыть, Esc — отмена. " +
-                     "Shift + боковое колесо — обычная горизонтальная прокрутка.",
-                     x, 620, width, null, Muted);
+            AddLabel(Lang.T("Пока список открыт: колесо — выбрать окно, Enter — открыть, Esc — отмена. " +
+                            "Shift + боковое колесо — обычная горизонтальная прокрутка.",
+                            "While the list is open: wheel — choose a window, Enter — open, Esc — cancel. " +
+                            "Shift + side wheel — normal horizontal scrolling."),
+                     x, 640, width, null, Muted);
 
-            var help = new LinkLabel { Text = "Инструкция", AutoSize = true, Location = new Point(x, 706) };
+            var help = new LinkLabel { Text = Lang.T("Инструкция", "Help"), AutoSize = true, Location = new Point(x, 726) };
             help.LinkClicked += delegate { OpenReadme(); };
             Controls.Add(help);
 
-            var close = new Button { Text = "Закрыть", Location = new Point(400, 700), Size = new Size(80, 28) };
+            var close = new Button { Text = Lang.T("Закрыть", "Close"), Location = new Point(400, 720), Size = new Size(80, 28) };
             close.Click += delegate { Close(); };
             Controls.Add(close);
             AcceptButton = close;
@@ -113,6 +133,13 @@ namespace MT760Helper
             foreach (ComboBox box in new[] { leftAction, rightAction, middleAction })
                 box.SelectedIndexChanged += delegate { Apply(); };
             autostart.CheckedChanged += delegate { if (!loading) Autostart.Set(autostart.Checked); };
+            language.SelectedIndexChanged += delegate
+            {
+                if (loading) return;
+                settings.Language = LanguageCodes[language.SelectedIndex];
+                settings.Save();
+                languageChanged();
+            };
 
             engine.WheelSeen += OnWheelSeen;
             engine.MacroDetected += OnMacroDetected;
@@ -132,6 +159,7 @@ namespace MT760Helper
             leftAction.SelectedIndex = (int)settings.LeftClickAction;
             rightAction.SelectedIndex = (int)settings.RightClickAction;
             middleAction.SelectedIndex = (int)settings.MiddleClickAction;
+            language.SelectedIndex = Math.Max(0, Array.IndexOf(LanguageCodes, settings.Language));
             autostart.Checked = Autostart.IsEnabled();
             loading = false;
         }
@@ -172,7 +200,9 @@ namespace MT760Helper
 
         static void OpenReadme()
         {
-            string path = Path.Combine(Path.GetDirectoryName(Application.ExecutablePath), "README.txt");
+            string folder = Path.GetDirectoryName(Application.ExecutablePath);
+            string path = Path.Combine(folder, Lang.T("README.txt", "README-en.txt"));
+            if (!File.Exists(path)) path = Path.Combine(folder, "README.txt");
             if (File.Exists(path)) Process.Start(path);
         }
 
@@ -190,7 +220,13 @@ namespace MT760Helper
         {
             group.Controls.Add(new Label { Text = text, Location = new Point(12, y + 3), AutoSize = true });
             var box = new ComboBox { Location = new Point(230, y), Width = 216, DropDownStyle = ComboBoxStyle.DropDownList };
-            box.Items.AddRange(ActionNames);
+            // Order = (int)ClickAction.
+            box.Items.AddRange(new object[]
+            {
+                Lang.T("Открыть выбранное окно", "Open selected window"),
+                Lang.T("Отменить переключение", "Cancel switching"),
+                Lang.T("Ничего не делать", "Do nothing"),
+            });
             group.Controls.Add(box);
             return box;
         }

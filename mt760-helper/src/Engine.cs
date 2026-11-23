@@ -365,12 +365,14 @@ namespace MT760Helper
             bool rapoo = IsRapoo(device);
             // Shift + side wheel keeps ordinary horizontal scrolling (timelines, wide tables).
             bool shift = !active && (Native.GetAsyncKeyState(Native.VK_SHIFT) & 0x8000) != 0;
-            string result = !settings.Enabled ? "утилита выключена, обычная прокрутка"
-                : settings.RapooOnly && !rapoo ? "не Rapoo, обычная прокрутка"
-                : shift ? "зажат Shift, обычная прокрутка"
+            string result = !settings.Enabled ? Lang.T("утилита выключена, обычная прокрутка", "helper disabled, normal scrolling")
+                : settings.RapooOnly && !rapoo ? Lang.T("не Rapoo, обычная прокрутка", "not Rapoo, normal scrolling")
+                : shift ? Lang.T("зажат Shift, обычная прокрутка", "Shift held, normal scrolling")
                 : null;
-            string source = device == IntPtr.Zero ? "устройство не определено" : rapoo ? "мышь Rapoo" : "другое устройство";
-            Post(delegate { ReportWheel(delta, source, result ?? "переключаю окна"); });
+            string source = device == IntPtr.Zero ? Lang.T("устройство не определено", "unknown device")
+                : rapoo ? Lang.T("мышь Rapoo", "Rapoo mouse")
+                : Lang.T("другое устройство", "other device");
+            Post(delegate { ReportWheel(delta, source, result ?? Lang.T("переключаю окна", "switching windows")); });
             if (result != null) return false;
             Post(delegate { OnSideWheelStep(delta); });
             return true;
@@ -378,7 +380,8 @@ namespace MT760Helper
 
         void ReportWheel(int delta, string source, string result)
         {
-            if (WheelSeen != null) WheelSeen((delta > 0 ? "Колесо вправо" : "Колесо влево") + " · " + source + " · " + result);
+            string direction = delta > 0 ? Lang.T("Колесо вправо", "Wheel right") : Lang.T("Колесо влево", "Wheel left");
+            if (WheelSeen != null) WheelSeen(direction + " · " + source + " · " + result);
         }
 
         void OnSideWheelStep(int delta)

@@ -1,0 +1,4 @@
+*.exe
+mt760-helper/tests/result.txt
+mt760-helper/tests/trace.txt
+ahub-russian/backup/

@@ -1,5 +1,7 @@
 # Rapoo MT760 Mini tools: hold-to-choose Alt+Tab on the side wheel + Russian UI for A HUB
 
+> **Interface: English and Russian.** MT760 Helper follows the Windows language and can be switched in its settings. / **Интерфейс на английском и русском.**
+
 Two small, offline Windows tools for the **Rapoo MT760 Mini** mouse and its **A HUB** driver app:
 
 1. **MT760 Helper** — the side (thumb) wheel opens the Windows Alt+Tab switcher and **keeps it open** while you pick a window, instead of the instant flash you get from an A HUB Alt+Tab macro.

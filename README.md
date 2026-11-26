@@ -19,7 +19,7 @@ The A HUB app can only bind the side wheel to a firmware macro (Alt down → Tab
 
 - Roll the side wheel: Alt+Tab opens and Alt stays held. Keep rolling to move through windows.
 - The selected window opens when you stop scrolling and moving the mouse for a set time (default 4.5 s), with a countdown at the bottom of the screen.
-- While the list is open: left click = open the selection, right click = cancel, wheel click = open, Enter / Esc. Each mouse button is configurable (open / cancel / do nothing). Clicks never leak into other apps (taskbar, second monitor).
+- While the list is open: click a thumbnail to open it, click its X to close that window, left click on empty space = open the selection, right click = cancel, wheel click = open, Enter / Esc. Each mouse button is configurable (open / cancel / do nothing). Clicks never leak into other apps (taskbar, second monitor).
 - **Shift + side wheel** keeps normal horizontal scrolling (timelines, wide tables).
 - Reacts **only to the Rapoo mouse** (raw-input device check), so laptop touchpads and other mice scroll as usual.
 - Tray icon, settings window in English or Russian (follows the Windows language, switchable), optional autostart. No network, no admin rights.
@@ -47,7 +47,6 @@ Install: start A HUB, then run `ahub-russian\Установить перевод
 Layout:
 - `mt760-helper/src` — C# 5 (built with the Windows-bundled `csc.exe` 4.x, so no `$""`, `?.`, etc.).
   - `Engine.cs` — low-level mouse hook + raw input, holds Alt, sends Tab/Shift+Tab, handles clicks/keys while switching.
-  - `Thumbnails.cs` — UI Automation hit test for switcher thumbnails (best effort).
   - `Lang.cs` — interface language; texts are written in place as `Lang.T("русский", "English")`.
   - `Settings.cs` (`%APPDATA%\MT760Helper\settings.ini`, HKCU Run autostart), `SettingsForm.cs`, `Overlay.cs` (countdown), `TrayApp.cs`, `Program.cs` (single instance, error log, optional trace when `%APPDATA%\MT760Helper\trace.on` exists).
 - `mt760-helper/tests/ClickTest.cs` — end-to-end test with synthetic input (`RapooOnly=0` so injected wheel events count).
@@ -57,7 +56,7 @@ Layout:
 Findings that cost time:
 - **Device identification**: when `WH_MOUSE_LL` is called, the matching `WM_INPUT` is already queued, so the hook can `PeekMessage` it and read the device (VID `24AE`) before deciding to swallow the event. Blocking in the LL hook does not suppress `WM_INPUT`.
 - **Windows 11 Alt+Tab** is one full-screen window (`XamlExplorerHostIslandWindow`, explorer.exe), so `WindowFromPoint` can't tell a thumbnail from empty space. UI Automation exposes the thumbnails (`ListItem`s) only sometimes.
-- **A click on empty space in the Win11 switcher makes it stick**: after that, releasing Alt and pressing Enter do nothing, only Esc closes it. So the helper swallows every left click and only replays it when UIA confirms it hit a thumbnail.
+- **A click inside the Win11 switcher makes it stick**: after a click on empty space (or on a thumbnail's X) releasing Alt, Enter and Space do nothing; Esc still cancels. Pressing **Tab** un-sticks it, but focus restarts at the first window (Tab → index 0, Shift+Tab → last). So the helper lets clicks through to Windows (thumbnail opens, X closes), tracks the net wheel steps, and rebuilds the selection with Tabs before opening — lazily, on the next wheel step or on commit, with ~150 ms before releasing Alt. A click is treated as an X-close when an Alt+Tab-eligible window (visible, titled, unowned, not a tool window, not cloaked) disappeared.
 - Hovering a thumbnail in Win11 Alt+Tab does **not** move the selection.
 - Before releasing Alt the helper taps an unassigned key (VK `0xE8`) so menus don't open.
 - A HUB stores key/DPI settings in the mouse; the side-wheel key IDs in `%LOCALAPPDATA%\A HUB\configs\MT760 Mini\*.json` are 7 and 8 (`"HorizontalRoller": 255` = left, `1` = right). A HUB macro keys come from the mouse's own HID keyboard collection.

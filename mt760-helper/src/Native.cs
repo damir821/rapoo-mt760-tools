@@ -37,11 +37,9 @@ namespace MT760Helper
         public const uint RIM_TYPEKEYBOARD = 1;
         public const ushort RI_MOUSE_HWHEEL = 0x0800;
 
-        public const uint INPUT_MOUSE = 0;
         public const uint INPUT_KEYBOARD = 1;
         public const uint KEYEVENTF_KEYUP = 0x0002;
-        public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-        public const uint MOUSEEVENTF_LEFTUP = 0x0004;
+        public const uint GA_ROOT = 2;
 
         public const ushort VK_TAB = 0x09;
         public const ushort VK_RETURN = 0x0D;
@@ -160,6 +158,39 @@ namespace MT760Helper
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr WindowFromPoint(POINT point);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
+
+        public const uint GW_OWNER = 4;
+        public const int GWL_EXSTYLE = -20;
+        public const int DWMWA_CLOAKED = 14;
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
+
+        [DllImport("user32.dll")]
+        public static extern int GetWindowLong(IntPtr hWnd, int index);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetWindowTextLength(IntPtr hWnd);
+
+        [DllImport("dwmapi.dll")]
+        public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int size);
+
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
 
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]

@@ -12,7 +12,6 @@ if not exist "%CSC%" (
 "%CSC%" -nologo -optimize+ -target:winexe -platform:anycpu -out:MT760Helper.exe ^
   -win32icon:src\app.ico -win32manifest:src\app.manifest -resource:src\app.ico,MT760Helper.app.ico ^
   -r:System.dll -r:System.Core.dll -r:System.Drawing.dll -r:System.Windows.Forms.dll ^
-  -lib:"%NET%\WPF" -r:UIAutomationClient.dll -r:UIAutomationTypes.dll -r:WindowsBase.dll ^
   src\*.cs
 if errorlevel 1 exit /b 1
 echo Built MT760Helper.exe

@@ -19,8 +19,9 @@ namespace MT760Helper
         const int WM_RUN_QUEUE = Native.WM_APP + 1;
         const int WheelNotch = 120;
         const int WheelResetMs = 600;
-        // Time for Windows to react to a click inside the switcher before we look at the result.
-        const int ClickSettleMs = 250;
+        // Time for Windows to react to a click inside the switcher (switch, or close via X) before we look.
+        const int ClickSettleMs = 400;
+        const int RestoreSettleMs = 150;
         const int MoveThresholdPx = 12;
         const int MaxHoldMs = 60000;
         const int RawFreshMs = 250;
@@ -58,6 +59,12 @@ namespace MT760Helper
         int sideAccum, mainAccum;
         Native.POINT anchor;
         bool swallowLeftUp, swallowMiddleUp, swallowRightUp;
+        // Net wheel steps since the switcher opened: the index of the selected window, negative from the end.
+        int position;
+        // After a click inside the switcher Windows forgets the selection; it is rebuilt lazily
+        // (on the next wheel step or when opening) so the highlight doesn't run across the list.
+        bool selectionLost;
+        List<IntPtr> windowsBeforeClick = new List<IntPtr>();
 
         public event EventHandler ShowRequested;
         public event Action<int, int> Countdown;
@@ -332,19 +339,37 @@ namespace MT760Helper
                 case Native.WM_LBUTTONDOWN:
                 {
                     if (!active) return false;
-                    // After a click on empty space the Windows 11 switcher stays open for good (even Enter
-                    // and releasing Alt do nothing), so a click reaches Windows only once it is known to
-                    // hit a thumbnail. This also keeps clicks on the taskbar or another monitor out of other windows.
+                    if (IsSwitcher(Native.GetAncestor(Native.WindowFromPoint(info.pt), Native.GA_ROOT)))
+                    {
+                        // Windows handles it: a thumbnail opens that window, its X closes it.
+                        Post(delegate
+                        {
+                            Touch();
+                            windowsBeforeClick = VisibleWindows();
+                        });
+                        return false;
+                    }
+                    // Taskbar, another monitor, or the list not on screen yet: keep the click out of other windows.
                     swallowLeftUp = true;
-                    Native.POINT pt = info.pt;
-                    Post(delegate { ResolveLeftClick(pt); });
+                    Post(delegate { RunClickAction(settings.LeftClickAction); });
                     return true;
                 }
 
                 case Native.WM_LBUTTONUP:
-                    if (!swallowLeftUp) return false;
-                    swallowLeftUp = false;
-                    return true;
+                    if (swallowLeftUp)
+                    {
+                        swallowLeftUp = false;
+                        return true;
+                    }
+                    if (active)
+                    {
+                        Post(delegate
+                        {
+                            int id = switchId;
+                            After(ClickSettleMs, delegate { if (active && id == switchId) AfterSwitcherClick(); });
+                        });
+                    }
+                    return false;
 
                 case Native.WM_MOUSEMOVE:
                     if (settings.KeepOpenWhileMoving &&
@@ -417,6 +442,12 @@ namespace MT760Helper
         void Step(bool forward)
         {
             if (!active) Begin();
+            if (selectionLost)
+            {
+                selectionLost = false;
+                RestoreSelection();
+            }
+            position += forward ? 1 : -1;
             if (forward)
                 Send(Key(Native.VK_TAB, false), Key(Native.VK_TAB, true));
             else
@@ -428,6 +459,8 @@ namespace MT760Helper
             active = true;
             startedAt = Now;
             switchId++;
+            position = 0;
+            selectionLost = false;
             Program.Trace("begin switch " + switchId);
             Native.GetCursorPos(out anchor);
             InstallKeyHook();
@@ -462,37 +495,65 @@ namespace MT760Helper
             else Touch();
         }
 
-        // A swallowed left click: replay it for Windows if it hit a thumbnail (Windows then opens that
-        // window), otherwise run the configured action. Thumbnails are looked up on a pool thread.
-        void ResolveLeftClick(Native.POINT pt)
+        // Windows has handled a left click inside the switcher:
+        // - the list is gone: a thumbnail was clicked and Windows switched to it;
+        // - the list is open and a window disappeared: its X was clicked; carry on choosing;
+        // - the list is open and nothing closed: empty space; run the configured action.
+        // After a click the Windows 11 switcher ignores releasing Alt and Enter until Tab is pressed,
+        // and Tab then starts from the first window, so the selection has to be rebuilt (selectionLost).
+        void AfterSwitcherClick()
         {
-            if (!active) return;
-            Touch();
-            IntPtr switcher = Native.GetForegroundWindow();
-            if (!IsSwitcher(switcher))
+            if (!IsSwitcher(Native.GetForegroundWindow()))
             {
-                // The list is not on screen yet (click right after the wheel).
-                RunClickAction(settings.LeftClickAction);
+                Finish(false, "thumbnail click");
                 return;
             }
-            int id = switchId;
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            bool closed = false;
+            foreach (IntPtr hwnd in windowsBeforeClick)
+                if (!Native.IsWindow(hwnd) || !Native.IsWindowVisible(hwnd)) closed = true;
+            Program.Trace("switcher click: window closed=" + closed + " position=" + position);
+            selectionLost = true;
+            if (closed) Touch();
+            else RunClickAction(settings.LeftClickAction);
+        }
+
+        // Tab selects the first window (index 0), Shift+Tab the last one (index -1); then step to `position`.
+        void RestoreSelection()
+        {
+            var keys = new List<Native.INPUT>();
+            bool forward = position >= 0;
+            for (int i = 0; i < (forward ? position + 1 : -position); i++)
             {
-                bool? onThumbnail = Thumbnails.HitTest(switcher, pt.X, pt.Y);
-                Post(delegate
-                {
-                    Program.Trace("left click at " + pt.X + "," + pt.Y + " onThumbnail=" + onThumbnail);
-                    if (!active || id != switchId) return;
-                    if (onThumbnail != true)
-                    {
-                        RunClickAction(settings.LeftClickAction);
-                        return;
-                    }
-                    Send(MouseButton(Native.MOUSEEVENTF_LEFTDOWN), MouseButton(Native.MOUSEEVENTF_LEFTUP));
-                    // Windows switches on its own; Alt is released once it has.
-                    After(ClickSettleMs, delegate { if (active && id == switchId) Finish(false, "thumbnail click"); });
-                });
-            });
+                if (!forward) keys.Add(Key(Native.VK_LSHIFT, false));
+                keys.Add(Key(Native.VK_TAB, false));
+                keys.Add(Key(Native.VK_TAB, true));
+                if (!forward) keys.Add(Key(Native.VK_LSHIFT, true));
+            }
+            Send(keys.ToArray());
+        }
+
+        // Windows of the kind Alt+Tab lists: visible, titled, unowned, not tool windows, not cloaked.
+        // Tooltips and the switcher's own helper windows come and go by themselves and must not count.
+        static List<IntPtr> VisibleWindows()
+        {
+            var list = new List<IntPtr>();
+            Native.EnumWindows(delegate(IntPtr hwnd, IntPtr unused)
+            {
+                if (Native.IsWindowVisible(hwnd) &&
+                    Native.GetWindow(hwnd, Native.GW_OWNER) == IntPtr.Zero &&
+                    (Native.GetWindowLong(hwnd, Native.GWL_EXSTYLE) & Native.WS_EX_TOOLWINDOW) == 0 &&
+                    Native.GetWindowTextLength(hwnd) > 0 &&
+                    !IsCloaked(hwnd) && !IsSwitcher(hwnd))
+                    list.Add(hwnd);
+                return true;
+            }, IntPtr.Zero);
+            return list;
+        }
+
+        static bool IsCloaked(IntPtr hwnd)
+        {
+            int cloaked;
+            return Native.DwmGetWindowAttribute(hwnd, Native.DWMWA_CLOAKED, out cloaked, sizeof(int)) == 0 && cloaked != 0;
         }
 
         static bool IsSwitcher(IntPtr hwnd)
@@ -518,6 +579,16 @@ namespace MT760Helper
         {
             Program.Trace("finish cancel=" + cancel + " (" + why + ") active=" + active);
             if (!active) return;
+            if (!cancel && selectionLost)
+            {
+                // Rebuild the selection, then give Windows a moment to take the Tabs before Alt goes up.
+                selectionLost = false;
+                timer.Stop();
+                RestoreSelection();
+                int id = switchId;
+                After(RestoreSettleMs, delegate { if (active && id == switchId) Finish(false, why); });
+                return;
+            }
             active = false;
             timer.Stop();
             var keys = new List<Native.INPUT>();
@@ -611,13 +682,6 @@ namespace MT760Helper
                 dwFlags = up ? Native.KEYEVENTF_KEYUP : 0,
                 dwExtraInfo = Marker,
             };
-            return input;
-        }
-
-        static Native.INPUT MouseButton(uint flags)
-        {
-            var input = new Native.INPUT { type = Native.INPUT_MOUSE };
-            input.u.mi = new Native.MOUSEINPUT { dwFlags = flags, dwExtraInfo = Marker };
             return input;
         }
 

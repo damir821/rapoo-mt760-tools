@@ -80,8 +80,8 @@ namespace MT760Helper
             middleAction = AddAction(buttons, Lang.T("Нажатие на колесо", "Wheel click"), 86);
             buttons.Controls.Add(new Label
             {
-                Text = Lang.T("Щелчок прямо по окну в списке открывает это окно, если Windows сообщает, где окна.",
-                              "Clicking a window in the list opens that window when Windows reports where the windows are."),
+                Text = Lang.T("Щелчок прямо по окну в списке открывает это окно, крестик на нём — закрывает.",
+                              "Clicking a window in the list opens that window; its X closes it."),
                 Location = new Point(12, 116), AutoSize = true, MaximumSize = new Size(width - 24, 0), ForeColor = Muted,
             });
             Controls.Add(buttons);

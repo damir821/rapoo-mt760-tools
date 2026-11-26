@@ -18,9 +18,8 @@ What each mouse button does can be changed in the settings ("Mouse buttons
 while the window list is open"): "Open selected window", "Cancel switching"
 or "Do nothing".
 
-Clicking a window thumbnail opens that very window, but only when Windows
-reports where the thumbnails are. Windows 11 does not always do that; when it
-doesn't, the click works like a click outside the windows (opens the selection).
+Clicking a window thumbnail opens that very window, and the X on a thumbnail
+closes the window — the list stays open so you can keep choosing.
 Clicks made while the list is open never reach other programs (taskbar, a
 second monitor).
 
